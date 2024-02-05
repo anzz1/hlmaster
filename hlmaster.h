@@ -28,6 +28,7 @@
   #include <netinet/in.h>
   #include <sys/socket.h>
   #include <unistd.h>
+  #include <errno.h>
   #define closesocket close
   #define __forceinline __inline__ __attribute__((always_inline))
   typedef int SOCKET;

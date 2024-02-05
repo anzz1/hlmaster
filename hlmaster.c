@@ -112,17 +112,19 @@ static int parseListRequest(u8 *packet)
   p++; // region
   u32 ip = 0;
   u16 port = 0;
+  int i = 0, j = 0, k = 0, l = 0, m = MAX_GAMES;
 
-  {
-    u8* p2 = p;
-    while (*p && *p != ':') p++;
-    *p = 0;
-    p++;
-
-    ip = __inet_addr(p2);
-    if (ip == -1) return 0;
-    port = __atoi(p);
+  for (i = 0; i < 16; i++) {
+    if (p[i] == 0) return 0;
+    if (p[i] == ':') break;
   }
+  if (i == 16) return 0;
+  p += i;
+  *p++ = 0;
+
+  ip = __inet_addr(packet+2);
+  if (ip == -1) return 0;
+  port = __atoi(p);
 
   while (*p) p++;
   p++;
@@ -142,8 +144,8 @@ static int parseListRequest(u8 *packet)
   packet[5] = 0x0A;
 
   peer_t *reply = (peer_t*)(&packet[6]);
-  int i = 0, j = 0, k = 0, l = 0, m = MAX_GAMES;
 
+  i = 0;
   while (i < MAX_GAMES && games[i].gamedir[0]) i++;
   m = i;
 
@@ -215,7 +217,7 @@ static int parsePacket(SOCKET sd, struct sockaddr_in* from, u8 *packet, u32 t)
     *(u32*)packet = 0xFFFFFFFF;
     packet[4] = 0x73;
     packet[5] = 0x0A;
-    *(u32*)((u8*)(packet+6)) = 1234567890;
+    *(u32*)(&packet[6]) = 1234567890;
     return replyTo(sd, from, packet, 10);
   }
   else if (packet[0] == 'b') { // bye
@@ -229,6 +231,7 @@ static int parsePacket(SOCKET sd, struct sockaddr_in* from, u8 *packet, u32 t)
     peer_t peer;
     peer.ip = from->sin_addr.s_addr;
     peer.port = from->sin_port;
+    *(u32*)(&packet[2048]) = 0;
     return parseChallengeResponse(&peer, packet+2, t);
   }
   else if (packet[0] == 'i' || (*(u32*)packet == 0xFFFFFFFF && packet[5] == 'i')) { // ping
@@ -238,6 +241,7 @@ static int parsePacket(SOCKET sd, struct sockaddr_in* from, u8 *packet, u32 t)
     return replyTo(sd, from, packet, 6);
   }
   else if (packet[0] == '1') { // list
+    *(u16*)(&packet[8190]) = 0;
     int len = parseListRequest(packet);
     if (len)
       return replyTo(sd, from, packet, len);
@@ -245,7 +249,16 @@ static int parsePacket(SOCKET sd, struct sockaddr_in* from, u8 *packet, u32 t)
   return 0;
 }
 
-int main()
+int socket_error(void)
+{
+#ifdef _WIN32
+  return WSAGetLastError() != WSAECONNRESET;
+#else
+  return errno != ECONNRESET;
+#endif
+}
+
+int main(void)
 {
   SOCKET sd;
   struct sockaddr_in server, client;
@@ -281,15 +294,15 @@ int main()
     __stosb((unsigned char*)&client, 0, sizeof(client));
     __stosb(data, 0, sizeof(data));
     addrlen = sizeof(struct sockaddr);
-    rcv = recvfrom(sd, (char*)data, sizeof(data)-1, 0, (struct sockaddr*)&client, &addrlen);
-    if (rcv == -1) {
+    rcv = recvfrom(sd, (char*)data, sizeof(data), 0, (struct sockaddr*)&client, &addrlen);
+    if (rcv == -1 && socket_error()) {
       closesocket(sd);
       return 1;
     }
 
     t = milliseconds();
 
-    if (rcv != 0)
+    if (rcv > 0)
       parsePacket(sd, &client, data, t);
 
     check_timedout(t);
