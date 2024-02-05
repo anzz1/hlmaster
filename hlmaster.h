@@ -3,7 +3,7 @@
 #define MAX_SERVERS 8192
 #define MAX_GAMES 128
 #define MAX_SERVERS_PER_PACKET 500
-#define TIMEOUT_SECONDS (15 * 60)
+#define TIMEOUT_MILLIS (15 * 60 * 1000)
 
 //
 
@@ -18,8 +18,8 @@
   #pragma comment(lib, "ws2_32.lib")
   WSADATA wsaData;
 
-  __forceinline static unsigned long seconds(void) {
-    return GetTickCount() / 1000;
+  __forceinline static unsigned long milliseconds(void) {
+    return GetTickCount();
   }
 
 #else
@@ -32,10 +32,10 @@
   #define __forceinline __inline__ __attribute__((always_inline))
   typedef int SOCKET;
 
-  __forceinline static unsigned long seconds(void) {
+  __forceinline static unsigned long milliseconds(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
-    return (ts.tv_sec + ts.tv_nsec / 1000000000);
+    return (1000 * ts.tv_sec + ts.tv_nsec / 1000000);
   }
 
   __forceinline static void __stosb(
@@ -140,7 +140,7 @@ __forceinline unsigned long __inet_addr(const char* cp) // ipv4
 __forceinline static int __atoi(char* a)
 {
   int i,x;
-  for (i = 0, x = 0; a[i] != 0 && a[i] > 47 && a[i] < 58; i++)
+  for (i = 0, x = 0; a[i] > 47 && a[i] < 58; i++)
     x = x * 10 + a[i] - 48;
   return x;
 }

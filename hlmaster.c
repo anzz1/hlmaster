@@ -5,13 +5,12 @@
 static game_t games[MAX_GAMES];
 static u32 g_time = 0;
 
-static void check_timedout(void)
+static void check_timedout(u32 t)
 {
-  u32 t = seconds();
-  if (g_time + TIMEOUT_SECONDS < t) {
+  if (g_time > t || g_time + TIMEOUT_MILLIS < t) {
     for (int i = 0; i < MAX_GAMES && games[i].gamedir[0]; i++) {
       for (int j = 0; j < MAX_SERVERS; j++) {
-        if (games[i].servers[j].t > t || games[i].servers[j].t + TIMEOUT_SECONDS < t)
+        if ((games[i].servers[j].t > t && 0xFFFFFFFF - games[i].servers[j].t + TIMEOUT_MILLIS < t) || games[i].servers[j].t + TIMEOUT_MILLIS < t)
           games[i].servers[j].peer.ip = 0;
       }
     }
@@ -32,7 +31,7 @@ static int del_server(peer_t* peer)
   return 0;
 }
 
-static int add_server(const char* gamedir, peer_t* peer)
+static int add_server(const char* gamedir, peer_t* peer, u32 t)
 {
   server_t *server = 0;
   int i;
@@ -40,14 +39,13 @@ static int add_server(const char* gamedir, peer_t* peer)
   for (i = 0; i < MAX_GAMES; i++) {
     if (!found && !games[i].gamedir[0]) {
       __strncpy(games[i].gamedir, gamedir, 31);
-      games[i].gamedir[31] = 0;
       server = &games[i].servers[MAX_SERVERS-1];
       break;
     }
     else if (!strcmp(games[i].gamedir, gamedir)) {
       for (int j = 0; j < MAX_SERVERS; j++) {
         if (games[i].servers[j].peer.ip == peer->ip && games[i].servers[j].peer.port == peer->port) {
-          games[i].servers[j].t = seconds();
+          games[i].servers[j].t = t;
           return 1;
         }
         else if (games[i].servers[j].peer.ip == 0) {
@@ -68,13 +66,13 @@ static int add_server(const char* gamedir, peer_t* peer)
   if (server) {
     server->peer.ip = peer->ip;
     server->peer.port = peer->port;
-    server->t = seconds();
+    server->t = t;
     return 1;
   }
   return 0;
 }
 
-static int parseChallengeResponse(peer_t* from, u8 *response)
+static int parseChallengeResponse(peer_t* from, u8 *response, u32 t)
 {
   u8 *p = response;
   u8 *gamedir = 0;
@@ -101,7 +99,7 @@ static int parseChallengeResponse(peer_t* from, u8 *response)
     p++;
   }
   if (good && gamedir)
-    return add_server(gamedir, from);
+    return add_server(gamedir, from, t);
 
   return 0;
 }
@@ -211,7 +209,7 @@ static int replyTo(SOCKET sd, struct sockaddr_in *to, u8 *packet, u32 len)
   return 1;
 }
 
-static int parsePacket(SOCKET sd, struct sockaddr_in* from, u8 *packet)
+static int parsePacket(SOCKET sd, struct sockaddr_in* from, u8 *packet, u32 t)
 {
   if (packet[0] == 'q') { // hello
     *(u32*)packet = 0xFFFFFFFF;
@@ -231,7 +229,7 @@ static int parsePacket(SOCKET sd, struct sockaddr_in* from, u8 *packet)
     peer_t peer;
     peer.ip = from->sin_addr.s_addr;
     peer.port = from->sin_port;
-    return parseChallengeResponse(&peer, packet+2);
+    return parseChallengeResponse(&peer, packet+2, t);
   }
   else if (packet[0] == 'i' || (*(u32*)packet == 0xFFFFFFFF && packet[5] == 'i')) { // ping
     *(u32*)packet = 0xFFFFFFFF;
@@ -253,13 +251,14 @@ int main()
   struct sockaddr_in server, client;
   unsigned char data[8192];
   int rcv, addrlen;
+  u32 t;
 
 #ifdef _WIN32
   if (WSAStartup(MAKEWORD(2, 2), &wsaData)) return 1;
 #endif
 
   __stosb((unsigned char*)&games, 0, sizeof(games));
-  g_time = seconds();
+  g_time = milliseconds();
 
   sd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
   if (sd == -1) return 1;
@@ -288,10 +287,12 @@ int main()
       return 1;
     }
 
-    if (rcv != 0)
-      parsePacket(sd, &client, data);
+    t = milliseconds();
 
-    check_timedout();
+    if (rcv != 0)
+      parsePacket(sd, &client, data, t);
+
+    check_timedout(t);
   }
 
   return 0;
