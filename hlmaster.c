@@ -249,7 +249,7 @@ static int parsePacket(SOCKET sd, struct sockaddr_in* from, u8 *packet, u32 t)
   return 0;
 }
 
-int socket_error(void)
+static int socket_error(void)
 {
 #ifdef _WIN32
   return WSAGetLastError() != WSAECONNRESET;
