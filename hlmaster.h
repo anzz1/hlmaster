@@ -2,7 +2,7 @@
 
 #define MAX_SERVERS 8192
 #define MAX_GAMES 128
-#define MAX_SERVERS_PER_PACKET 500
+#define MAX_SERVERS_PER_PACKET 231 // 1386 bytes + header = 1392 bytes
 #define TIMEOUT_MILLIS (15 * 60 * 1000)
 
 //
