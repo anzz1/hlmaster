@@ -112,7 +112,7 @@ static int parseListRequest(u8 *packet)
   p++; // region
   u32 ip = 0;
   u16 port = 0;
-  int i = 0, j = 0, k = 0, l = 0, m = MAX_GAMES;
+  int i = 0, j = 0, k = 0, l = 0, m = 0;
 
   for (i = 0; i < 16; i++) {
     if (p[i] == 0) return 0;
@@ -125,6 +125,7 @@ static int parseListRequest(u8 *packet)
   ip = __inet_addr(packet+2);
   if (ip == -1) return 0;
   port = __atoi(p);
+  port = (port >> 8) | (port << 8); // htons(port)
 
   while (*p) p++;
   p++;
@@ -145,12 +146,11 @@ static int parseListRequest(u8 *packet)
 
   peer_t *reply = (peer_t*)(&packet[6]);
 
-  i = 0;
-  while (i < MAX_GAMES && games[i].gamedir[0]) i++;
-  m = i;
+  while (m < MAX_GAMES && games[m].gamedir[0]) m++;
 
+  i = 0;
   if (gamedir && *gamedir) {
-    for (i = 0; i < m; i++) {
+    for (; i < m; i++) {
       if (!strcmp(gamedir, games[i].gamedir)) {
         k = i;
         m = i+1;
