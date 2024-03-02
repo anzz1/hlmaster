@@ -252,9 +252,10 @@ static int parsePacket(SOCKET sd, struct sockaddr_in* from, u8 *packet, u32 t)
 static int socket_error(void)
 {
 #ifdef _WIN32
-  return WSAGetLastError() != WSAECONNRESET;
+  int err = WSAGetLastError();
+  return (err && err != WSAECONNRESET && err != WSAEMSGSIZE);
 #else
-  return errno != ECONNRESET;
+  return (errno != ECONNRESET && errno != EMSGSIZE);
 #endif
 }
 
@@ -280,15 +281,14 @@ int main(void)
   server.sin_family = AF_INET;
   server.sin_port = 0x8269; // htons(27010)
 
+  setsockopt(sd, SOL_SOCKET, SO_SNDTIMEO, (const char*)&timeout, sizeof(timeout));
+  setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&infinite, sizeof(infinite));
+  setsockopt(sd, SOL_TCP, TCP_USER_TIMEOUT, (const char*)&timeout, sizeof(timeout));
+
   if (bind(sd, (struct sockaddr*)&server, sizeof(struct sockaddr)) == -1) {
     closesocket(sd);
     return 1;
   }
-
-  setsockopt(sd, SOL_SOCKET, SO_SNDTIMEO, (const char*)&dwTimeout, sizeof(dwTimeout));
-  setsockopt(sd, SOL_SOCKET, SO_SNDTIMEO, (const char*)&dwTimeout, sizeof(dwTimeout));
-  setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&dwInfinite, sizeof(dwInfinite));
-  setsockopt(sd, SOL_TCP, TCP_USER_TIMEOUT, (const char*)&dwTimeout, sizeof(dwTimeout));
 
   while (1) {
     __stosb((unsigned char*)&client, 0, sizeof(client));

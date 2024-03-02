@@ -22,6 +22,9 @@
     return GetTickCount();
   }
 
+  const unsigned long timeout = 1000;
+  const unsigned long infinite = 0;
+
 #else
   #include <time.h>
   #include <string.h>
@@ -45,6 +48,9 @@
       : [Dest] "=D"(Dest), [Count] "=c"(Count)
       : "[Dest]"(Dest), "a"(Data), "[Count]"(Count));
   }
+
+  struct timeval timeout = { 1, 0 };
+  struct timeval infinite = { 0, 0 };
 #endif
 
 #ifndef SOL_TCP
@@ -53,9 +59,6 @@
 #ifndef TCP_USER_TIMEOUT
   #define TCP_USER_TIMEOUT 18
 #endif
-
-const unsigned long dwTimeout = 1000;
-const unsigned long dwInfinite = 0;
 
 typedef unsigned char u8;
 typedef unsigned short u16;
