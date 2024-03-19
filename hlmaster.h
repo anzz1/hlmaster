@@ -9,13 +9,18 @@
 
 #pragma intrinsic(strcmp)
 
+#ifdef _MSC_VER
+  #pragma comment(lib, "ws2_32.lib")
+#else
+  #define __forceinline __inline__ __attribute__((always_inline))
+#endif
+
 #ifdef _WIN32
   #define WINVER 0x0501
   #define _WIN32_WINNT 0x0501
   #define WIN32_LEAN_AND_MEAN
   #include <windows.h>
   #include <winsock2.h>
-  #pragma comment(lib, "ws2_32.lib")
   WSADATA wsaData;
 
   __forceinline static unsigned long milliseconds(void) {
@@ -33,7 +38,6 @@
   #include <unistd.h>
   #include <errno.h>
   #define closesocket close
-  #define __forceinline __inline__ __attribute__((always_inline))
   typedef int SOCKET;
 
   __forceinline static unsigned long milliseconds(void) {
@@ -42,15 +46,17 @@
     return (1000 * ts.tv_sec + ts.tv_nsec / 1000000);
   }
 
+  struct timeval timeout = { 1, 0 };
+  struct timeval infinite = { 0, 0 };
+#endif
+
+#if !defined(_MSC_VER) && !defined(__clang__)
   __forceinline static void __stosb(
     unsigned char *Dest, const unsigned char Data, size_t Count) {
     __asm__ __volatile__("rep; stosb"
       : [Dest] "=D"(Dest), [Count] "=c"(Count)
       : "[Dest]"(Dest), "a"(Data), "[Count]"(Count));
   }
-
-  struct timeval timeout = { 1, 0 };
-  struct timeval infinite = { 0, 0 };
 #endif
 
 #ifndef SOL_TCP
