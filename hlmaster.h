@@ -59,13 +59,6 @@
   }
 #endif
 
-#ifndef SOL_TCP
-  #define SOL_TCP 6
-#endif
-#ifndef TCP_USER_TIMEOUT
-  #define TCP_USER_TIMEOUT 18
-#endif
-
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned long u32;
@@ -85,19 +78,9 @@ typedef struct server_t {
 } server_t;
 
 typedef struct game_t {
-  char gamedir[32];
+  u32 j_gamedir;
   server_t servers[MAX_SERVERS];
 } game_t;
-
-__forceinline static char* __strncpy(char* dst, const char* src, unsigned int len) {
-  unsigned int i;
-  for (i = 0; i < len; i++) {
-    if (src[i] == 0) break;
-    dst[i] = src[i];
-  }
-  dst[i] = 0;
-  return dst;
-}
 
 __forceinline static int __strncmp(const char* s1, const char* s2, unsigned int len) {
   unsigned int i;
@@ -154,3 +137,17 @@ __forceinline static int __atoi(char* a)
     x = x * 10 + a[i] - 48;
   return x;
 }
+
+unsigned long joaat_i(const unsigned char* s) {
+  unsigned long hash = 0;
+  while (*s) {
+    hash += ((*s>64&&*s<91)?((*s++)+32):*s++); // A-Z -> a-z
+    hash += (hash << 10);
+    hash ^= (hash >> 6);
+  }
+  hash += (hash << 3);
+  hash ^= (hash >> 11);
+  hash += (hash << 15);
+  return hash;
+}
+
