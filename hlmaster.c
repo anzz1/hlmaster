@@ -42,23 +42,25 @@ static int add_server(u32 j_gamedir, peer_t* peer, u32 t)
       server = &games[i].servers[MAX_SERVERS-1];
       break;
     }
-    else if (games[i].j_gamedir == j_gamedir) {
-      for (int j = 0; j < MAX_SERVERS; j++) {
-        if (games[i].servers[j].peer.ip == peer->ip && games[i].servers[j].peer.port == peer->port) {
-          games[i].servers[j].t = t;
-          return 1;
+    else if (games[i].j_gamedir) {
+      if (games[i].j_gamedir == j_gamedir) {
+        for (int j = 0; j < MAX_SERVERS; j++) {
+          if (games[i].servers[j].peer.ip == peer->ip && games[i].servers[j].peer.port == peer->port) {
+            games[i].servers[j].t = t;
+            return 1;
+          }
+          else if (games[i].servers[j].peer.ip == 0) {
+            server = &games[i].servers[j];
+          }
         }
-        else if (games[i].servers[j].peer.ip == 0) {
-          server = &games[i].servers[j];
-        }
+        found = 1;
       }
-      found = 1;
-    }
-    else {
-      for (int j = 0; j < MAX_SERVERS; j++) {
-        if (games[i].servers[j].peer.ip == peer->ip && games[i].servers[j].peer.port == peer->port) {
-          games[i].servers[j].peer.ip = 0;
-          break;
+      else {
+        for (int j = 0; j < MAX_SERVERS; j++) {
+          if (games[i].servers[j].peer.ip == peer->ip && games[i].servers[j].peer.port == peer->port) {
+            games[i].servers[j].peer.ip = 0;
+            break;
+          }
         }
       }
     }
@@ -255,9 +257,9 @@ static int socket_error(void)
 {
 #ifdef _WIN32
   int err = WSAGetLastError();
-  return (err && err != WSAECONNRESET && err != WSAEMSGSIZE);
+  return (err && err != WSAECONNRESET && err != WSAEMSGSIZE && err != WSAETIMEDOUT);
 #else
-  return (errno != ECONNRESET && errno != EMSGSIZE);
+  return (errno != ECONNRESET && errno != EMSGSIZE && errno != ETIMEDOUT);
 #endif
 }
 
